@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVP Blood Bank Management System</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 15px; background-color: #f4f4f4; text-align: center; }
+        h1, h2 { color: #b71c1c; margin-bottom: 10px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-bottom: 20px; text-align: center; }
+        input, select, button { width: 90%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; box-sizing: border-box; }
+        label { display: block; text-align: left; margin-left: 5%; font-weight: bold; margin-top: 5px; color: #333; }
+        button { background-color: #b71c1c; color: white; border: none; font-weight: bold; cursor: pointer; }
+        .nav-btns { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .nav-btns button { width: 45%; background-color: #555; }
+        .nav-btns button.active { background-color: #b71c1c; }
+        .result-box { margin-top: 15px; padding: 15px; border-radius: 5px; font-size: 18px; font-weight: bold; display: none; }
+        .available { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .not-available { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #b71c1c; color: white; }
+        .btn-delete { background-color: #f44336; padding: 5px 10px; width: auto; margin: 0; font-size: 12px; }
+        #appContent { display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>🩸 SVP Blood Bank</h1>
+
+    <!-- १. पासवर्ड स्क्रीन -->
+    <div id="loginScreen" class="card">
+        <h2>कर्मचारी लॉगिन (Worker Login)</h2>
+        <p>सिस्टीम वापरण्यासाठी पासवर्ड टाका:</p>
+        <input type="password" id="passwordInput" placeholder="पासवर्ड टाका (Default: 1234)">
+        <button onclick="checkPassword()">लॉगिन करा</button>
+        <p id="loginError" style="color: red; display: none;">चुकीचा पासवर्ड! पुन्हा प्रयत्न करा.</p>
+    </div>
+
+    <!-- २. मुख्य ॲप्लिकेशन स्क्रीन -->
+    <div id="appContent">
+        
+        <!-- रक्ताची उपलब्धता शोधणे (Search Stock) -->
+        <div class="card">
+            <h2>१. रक्ताची उपलब्धता शोधा (Search Availability)</h2>
+            <select id="searchGroup">
+                <option value="">ब्लड ग्रुप निवडा</option>
+                <option value="A+">A+</option><option value="A-">A-</option>
+                <option value="B+">B+</option><option value="B-">B-</option>
+                <option value="O+">O+</option><option value="O-">O-</option>
+                <option value="AB+">AB+</option><option value="AB-">AB-</option>
+            </select>
+            <button onclick="checkAvailability()">स्टॉक शोधा (Search Stock)</button>
+            <div id="searchResult" class="result-box"></div>
+        </div>
+
+        <!-- नवीन फीचर: तारखेनुसार सर्च -->
+        <div class="card">
+            <h2>२. तारखेनुसार रिपोर्ट शोधा (Search by Date)</h2>
+            <label for="searchDateInput">तारीख निवडा:</label>
+            <input type="date" id="searchDateInput">
+            <button onclick="searchByDate()">तारीखनुसार शोधा</button>
+
+            <div id="dateSearchResult" style="display: none; margin-top: 15px;">
+                <h3 style="color: green;">रक्त जमा झालेले (Donated Blood)</h3>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr><th>नाव</th><th>ग्रुप</th><th>फोन</th><th>शहर</th><th>प्रमाण</th></tr>
+                        </thead>
+                        <tbody id="dateDonorTable"></tbody>
+                    </table>
+                </div>
+
+                <h3 style="color: red; margin-top: 20px;">रक्त दिलेले / नेलेले (Issued Blood)</h3>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr><th>रुग्णाचे नाव</th><th>ग्रुप</th><th>फोन</th><th>हॉस्पिटल</th><th>प्रमाण</th></tr>
+                        </thead>
+                        <tbody id="dateReceiverTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- पेज बदलण्याचे बटन्स -->
+        <div class="nav-btns">
+            <button id="donorTabBtn" class="active" onclick="switchTab('donor')">रक्तदाता (Donors)</button>
+            <button id="receiverTabBtn" onclick="switchTab('receiver')">रक्त घेणारे (Receivers)</button>
+        </div>
+
+        <!-- पेज १: रक्तदाता विभाग -->
+        <div id="donorSection">
+            <div class="card">
+                <h2>नवीन रक्तदाता नोंदणी (Add Donor)</h2>
+                <input type="text" id="dName" placeholder="रक्तदात्याचे पूर्ण नाव" required><br>
+                <select id="dGroup">
+                    <option value="">ब्लड ग्रुप निवडा</option>
+                    <option value="A+">A+</option><option value="A-">A-</option>
+                    <option value="B+">B+</option><option value="B-">B-</option>
+                    <option value="O+">O+</option><option value="O-">O-</option>
+                    <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                </select><br>
+                <input type="number" id="dPhone" placeholder="फोन नंबर" required><br>
+                <input type="text" id="dCity" placeholder="शहर / गाव" required><br>
+                <label for="dDate">रक्तदान केल्याची तारीख:</label>
+                <input type="date" id="dDate" required><br>
+                <input type="number" id="dQuantity" placeholder="रक्ताचे प्रमाण (Bags मध्ये, उदा. 1)" min="1" required><br>
+                <button onclick="addDonor()">माहिती सेव्ह करा</button>
+            </div>
+
+            <div class="card" style="overflow-x:auto;">
+                <h2>रक्तदात्यांची सर्व यादी</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>नाव</th><th>ग्रुप</th><th>फोन</th><th>शहर</th><th>तारीख</th><th>प्रमाण</th><th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="donorTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- पेज २: रक्त घेणारे विभाग -->
+        <div id="receiverSection" style="display: none;">
+            <div class="card">
+                <h2>रक्त घेणाऱ्याची नोंद (Issue Blood)</h2>
+                <input type="text" id="rName" placeholder="रुग्णाचे / घेणाऱ्याचे नाव" required><br>
+                <select id="rGroup">
+                    <option value="">गरज असलेला ब्लड ग्रुप निवडा</option>
+                    <option value="A+">A+</option><option value="A-">A-</option>
+                    <option value="B+">B+</option><option value="B-">B-</option>
+                    <option value="O+">O+</option><option value="O-">O-</option>
+                    <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                </select><br>
+                <input type="number" id="rPhone" placeholder="फोन नंबर" required><br>
+                <input type="text" id="rHospital" placeholder="हॉस्पिटलचे नाव / शहर" required><br>
+                <label for="rDate">रक्त घेतल्याची तारीख:</label>
+                <input type="date" id="rDate" required><br>
+                <input type="number" id="rQuantity" placeholder="किती Bags हव्या आहेत?" min="1" required><br>
+                <button onclick="addReceiver()">रक्त इश्यू / सेव्ह करा</button>
+            </div>
+
+            <div class="card" style="overflow-x:auto;">
+                <h2>रक्त घेतलेल्या रुग्णांची सर्व यादी</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>रुग्णाचे नाव</th><th>ग्रुप</th><th>फोन</th><th>हॉस्पिटल</th><th>तारीख</th><th>प्रमाण</th><th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="receiverTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // पासवर्ड चेकिंग (Password: 1234)
+        function checkPassword() {
+            let pass = document.getElementById('passwordInput').value;
+            if(pass === "1234") {
+                document.getElementById('loginScreen').style.display = "none";
+                document.getElementById('appContent').style.display = "block";
+                updateTables();
+            } else {
+                document.getElementById('loginError').style.display = "block";
+            }
+        }
+
+        let donors = JSON.parse(localStorage.getItem('svp_donors')) || [];
+        let receivers = JSON.parse(localStorage.getItem('svp_receivers')) || [];
+
+        function switchTab(tab) {
+            if(tab === 'donor') {
+                document.getElementById('donorSection').style.display = "block";
+                document.getElementById('receiverSection').style.display = "none";
+                document.getElementById('donorTabBtn').classList.add('active');
+                document.getElementById('receiverTabBtn').classList.remove('active');
+            } else {
+                document.getElementById('donorSection').style.display = "none";
+                document.getElementById('receiverSection').style.display = "block";
+                document.getElementById('receiverTabBtn').classList.add('active');
+                document.getElementById('donorTabBtn').classList.remove('active');
+            }
+        }
+
+        function getGroupStock(group) {
+            let donated = donors.filter(d => d.group === group).reduce((sum, d) => sum + parseInt(d.quantity), 0);
+            let received = receivers.filter(r => r.group === group).reduce((sum, r) => sum + parseInt(r.quantity), 0);
+            return donated - received;
+        }
+
+        function checkAvailability() {
+            let group = document.getElementById('searchGroup').value;
+            let resultDiv = document.getElementById('searchResult');
+
+            if(!group) {
+                alert('कृपया ब्लड ग्रुप निवडा!'); return;
+            }
+
+            let count = getGroupStock(group);
+            resultDiv.style.display = "block";
+
+            if(count > 0) {
+                resultDiv.className = "result-box available";
+                resultDiv.innerHTML = `✅ <b>${group}</b> उपलब्ध आहे! (एकूण साठा: <b>${count} Bags</b>)`;
+            } else {
+                resultDiv.className = "result-box not-available";
+                resultDiv.innerHTML = `❌ <b>${group}</b> उपलब्ध नाही (Not Available)`;
+            }
+        }
+
+        // तारखेनुसार शोधणे (Search by Date Function)
+        function searchByDate() {
+            let selectedDate = document.getElementById('searchDateInput').value;
+            if(!selectedDate) {
+                alert('कृपया तारीख निवडा!'); return;
+            }
+
+            let filteredDonors = donors.filter(d => d.date === selectedDate);
+            let filteredReceivers = receivers.filter(r => r.date === selectedDate);
+
+            document.getElementById('dateSearchResult').style.display = "block";
+
+            // १. त्या तारखेचे Donors टेबल
+            let dTable = document.getElementById('dateDonorTable');
+            dTable.innerHTML = filteredDonors.length === 0 ? '<tr><td colspan="5">या तारखेला कोणतेही रक्तदान झालेले नाही.</td></tr>' : '';
+            filteredDonors.forEach(d => {
+                dTable.innerHTML += `<tr><td>${d.name}</td><td><b>${d.group}</b></td><td>${d.phone}</td><td>${d.city}</td><td>${d.quantity} Bag</td></tr>`;
+            });
+
+            // २. त्या तारखेचे Receivers टेबल
+            let rTable = document.getElementById('dateReceiverTable');
+            rTable.innerHTML = filteredReceivers.length === 0 ? '<tr><td colspan="5">या तारखेला कोणालाही रक्त दिलेले नाही.</td></tr>' : '';
+            filteredReceivers.forEach(r => {
+                rTable.innerHTML += `<tr><td>${r.name}</td><td><b>${r.group}</b></td><td>${r.phone}</td><td>${r.hospital}</td><td>${r.quantity} Bag</td></tr>`;
+            });
+        }
+
+        function updateTables() {
+            let dList = document.getElementById('donorTable');
+            dList.innerHTML = donors.length === 0 ? '<tr><td colspan="7">नोंद उपलब्ध नाही</td></tr>' : '';
+            donors.forEach((d, i) => {
+                dList.innerHTML += `<tr>
+                    <td>${d.name}</td><td><b>${d.group}</b></td><td>${d.phone}</td>
+                    <td>${d.city}</td><td>${d.date}</td><td>${d.quantity} Bag</td>
+                    <td><button class="btn-delete" onclick="deleteDonor(${i})">Delete</button></td>
+                </tr>`;
+            });
+
+            let rList = document.getElementById('receiverTable');
+            rList.innerHTML = receivers.length === 0 ? '<tr><td colspan="7">नोंद उपलब्ध नाही</td></tr>' : '';
+            receivers.forEach((r, i) => {
+                rList.innerHTML += `<tr>
+                    <td>${r.name}</td><td><b>${r.group}</b></td><td>${r.phone}</td>
+                    <td>${r.hospital}</td><td>${r.date}</td><td>${r.quantity} Bag</td>
+                    <td><button class="btn-delete" onclick="deleteReceiver(${i})">Delete</button></td>
+                </tr>`;
+            });
+        }
+
+        function addDonor() {
+            let name = document.getElementById('dName').value;
+            let group = document.getElementById('dGroup').value;
+            let phone = document.getElementById('dPhone').value;
+            let city = document.getElementById('dCity').value;
+            let date = document.getElementById('dDate').value;
+            let quantity = document.getElementById('dQuantity').value;
+
+            if(!name || !group || !phone || !city || !date || !quantity) {
+                alert('कृपया सर्व माहिती भरा!'); return;
+            }
+
+            donors.push({ name, group, phone, city, date, quantity });
+            localStorage.setItem('svp_donors', JSON.stringify(donors));
+            alert('रक्तदात्याची नोंद झाली!');
+            
+            document.getElementById('dName').value = ''; document.getElementById('dGroup').value = '';
+            document.getElementById('dPhone').value = ''; document.getElementById('dCity').value = '';
+            document.getElementById('dDate').value = ''; document.getElementById('dQuantity').value = '';
+            
+            updateTables();
+        }
+
+        function addReceiver() {
+            let name = document.getElementById('rName').value;
+            let group = document.getElementById('rGroup').value;
+            let phone = document.getElementById('rPhone').value;
+            let hospital = document.getElementById('rHospital').value;
+            let date = document.getElementById('rDate').value;
+            let quantity = parseInt(document.getElementById('rQuantity').value);
+
+            if(!name || !group || !phone || !hospital || !date || !quantity) {
+                alert('कृपया सर्व माहिती भरा!'); return;
+            }
+
+            let currentStock = getGroupStock(group);
+            if(quantity > currentStock) {
+                alert(`माफ करा! ${group} चा पुरेसा साठा उपलब्ध नाही. सध्या फक्त ${currentStock > 0 ? currentStock : 0} Bags उपलब्ध आहेत.`);
+                return;
+            }
+
+            receivers.push({ name, group, phone, hospital, date, quantity });
+            localStorage.setItem('svp_receivers', JSON.stringify(receivers));
+            alert('रक्त इश्यू केल्याची नोंद झाली!');
+
+            document.getElementById('rName').value = ''; document.getElementById('rGroup').value = '';
+            document.getElementById('rPhone').value = ''; document.getElementById('rHospital').value = '';
+            document.getElementById('rDate').value = ''; document.getElementById('rQuantity').value = '';
+
+            updateTables();
+        }
+
+        function deleteDonor(index) {
+            if(confirm("ही नोंद डिलीट करायची आहे का?")) {
+                donors.splice(index, 1);
+                localStorage.setItem('svp_donors', JSON.stringify(donors));
+                updateTables();
+            }
+        }
+
+        function deleteReceiver(index) {
+            if(confirm("ही नोंद डिलीट करायची आहे का?")) {
+                receivers.splice(index, 1);
+                localStorage.setItem('svp_receivers', JSON.stringify(receivers));
+                updateTables();
+            }
+        }
+    </script>
+</body>
+</html>
