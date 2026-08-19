@@ -37,16 +37,16 @@
 </head>
 <body>
 
-    <!-- १. सेपरेट पासवर्ड आणि बँक नाव लॉगिन स्क्रीन -->
+    <!-- १. लॉगिन स्क्रीन -->
     <div id="loginScreen" class="card" style="max-width: 400px; margin: 50px auto;">
         <h2>🩸 Blood Bank Portal</h2>
         <p>तुमच्या ब्लड बँकची माहिती भरून प्रवेश करा:</p>
         
-        <input type="text" id="bbNameInput" placeholder="ब्लड बँकचे नाव टाका">
-        <input type="password" id="passwordInput" placeholder="तुमचा गुप्त पासवर्ड सेट/टाका">
-        
-        <button type="button" onclick="doLogin()">लॉगिन / सिस्टीम उघडा</button>
-        <p id="loginError" style="color: red; display: none; margin-top: 10px; font-weight: bold;">❌ कृपया नाव आणि पासवर्ड दोन्ही टाका!</p>
+        <form onsubmit="doLogin(event)">
+            <input type="text" id="bbNameInput" placeholder="ब्लड बँकचे नाव टाका" required>
+            <input type="password" id="passwordInput" placeholder="गुप्त पासवर्ड टाका" required>
+            <button type="submit">लॉगिन / सिस्टीम उघडा</button>
+        </form>
     </div>
 
     <!-- २. मुख्य ॲप्लिकेशन स्क्रीन -->
@@ -223,21 +223,22 @@
         let receivers = [];
         let currentBankKey = "";
 
-        function doLogin() {
+        function doLogin(e) {
+            if(e) e.preventDefault();
+            
             var bbName = document.getElementById('bbNameInput').value.trim();
             var inputPass = document.getElementById('passwordInput').value.trim();
 
             if (bbName !== "" && inputPass !== "") {
-                // बँक नाव व पासवर्ड एकत्र करून युनिक की बनवणे
-                currentBankKey = bbName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase() + "_" + inputPass;
+                currentBankKey = bbName.toLowerCase().replace(/[^a-z0-9]/g, "_") + "_" + inputPass;
 
                 document.getElementById('loginScreen').style.display = "none";
                 document.getElementById('appContent').style.display = "block";
                 document.getElementById('displayBBName').innerText = "🩸 " + bbName;
-                document.getElementById('loginError').style.display = "none";
+
                 listenToFirebaseData();
             } else {
-                document.getElementById('loginError').style.display = "block";
+                alert("कृपया नाव आणि पासवर्ड दोन्ही टाका!");
             }
         }
 
@@ -386,4 +387,7 @@
             rList.innerHTML = receivers.length === 0 ? '<tr><td colspan="7">नोंद उपलब्ध नाही</td></tr>' : '';
             receivers.forEach((r) => {
                 rList.innerHTML += `<tr>
-                    <td>${r.name}</td><td><b>${r.group}</b></td><td>${r.pho
+                    <td>${r.name}</td><td><b>${r.group}</b></td><td>${r.phone}</td>
+                    <td>${r.hospital}</td><td>${r.date}</td><td>${r.quantity} Bag</td>
+                    <td><button type="button" class="btn-delete" onclick="deleteReceiver('${r.id}')">Delete</button></td>
+          
