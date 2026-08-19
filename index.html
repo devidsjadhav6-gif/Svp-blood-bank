@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SVP Blood Bank Management System</title>
+    <title>Multi-Bank Management System</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 15px; background-color: #f4f4f4; text-align: center; }
         h1, h2 { color: #b71c1c; margin-bottom: 10px; }
@@ -28,6 +28,7 @@
         th { background-color: #b71c1c; color: white; }
         .btn-delete { background-color: #f44336; padding: 5px 10px; width: auto; margin: 0; font-size: 12px; }
         .search-filter { width: 100%; padding: 10px; margin-bottom: 15px; border: 2px solid #b71c1c; border-radius: 5px; }
+        .logout-btn { background-color: #333; margin-top: 10px; width: auto; padding: 8px 15px; }
     </style>
 
     <!-- Firebase SDK Scripts -->
@@ -36,19 +37,25 @@
 </head>
 <body>
 
-    <h1>🩸 SVP Blood Bank</h1>
-
-    <!-- १. पासवर्ड लॉगिन स्क्रीन -->
-    <div id="loginScreen" class="card">
-        <h2>कर्मचारी लॉगिन (Worker Login)</h2>
-        <p>सिस्टीम वापरण्यासाठी पासवर्ड टाका:</p>
-        <input type="password" id="passwordInput" placeholder="पासवर्ड टाका">
-        <button type="button" onclick="doLogin()">लॉगिन करा</button>
-        <p id="loginError" style="color: red; display: none; margin-top: 10px; font-weight: bold;">❌ चुकीचा पासवर्ड! पुन्हा प्रयत्न करा.</p>
+    <!-- १. सेपरेट पासवर्ड आणि बँक नाव लॉगिन स्क्रीन -->
+    <div id="loginScreen" class="card" style="max-width: 400px; margin: 50px auto;">
+        <h2>🩸 Blood Bank Portal</h2>
+        <p>तुमच्या ब्लड बँकची माहिती भरून प्रवेश करा:</p>
+        
+        <input type="text" id="bbNameInput" placeholder="ब्लड बँकचे नाव टाका">
+        <input type="password" id="passwordInput" placeholder="तुमचा गुप्त पासवर्ड सेट/टाका">
+        
+        <button type="button" onclick="doLogin()">लॉगिन / सिस्टीम उघडा</button>
+        <p id="loginError" style="color: red; display: none; margin-top: 10px; font-weight: bold;">❌ कृपया नाव आणि पासवर्ड दोन्ही टाका!</p>
     </div>
 
     <!-- २. मुख्य ॲप्लिकेशन स्क्रीन -->
     <div id="appContent" style="display: none;">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+            <h1 id="displayBBName" style="margin: 0; font-size: 22px;">🩸 Blood Bank</h1>
+            <button type="button" class="logout-btn" onclick="doLogout()">लॉगआउट</button>
+        </div>
 
         <!-- एक्सपायरी ट्रॅकर विभाग -->
         <div class="expiry-container">
@@ -198,7 +205,6 @@
     </div>
 
     <script>
-        // तुझ्या इमेजमधील लाईव्ह Firebase Config डिटेल्स जोडल्या आहेत:
         const firebaseConfig = {
             apiKey: "AIzaSyC8e8lkeTZQLvCad6JFfi7nCc7rNb0WZLo",
             authDomain: "svp-blood-bank.firebaseapp.com",
@@ -210,28 +216,40 @@
             measurementId: "G-VV901XTYG6"
         };
 
-        // Firebase इनिशिअलाईज करणे
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
         let donors = [];
         let receivers = [];
-        const systemPassword = "23456789";
+        let currentBankKey = "";
 
         function doLogin() {
+            var bbName = document.getElementById('bbNameInput').value.trim();
             var inputPass = document.getElementById('passwordInput').value.trim();
-            if (inputPass === systemPassword) {
+
+            if (bbName !== "" && inputPass !== "") {
+                // बँक नाव व पासवर्ड एकत्र करून युनिक की बनवणे
+                currentBankKey = bbName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase() + "_" + inputPass;
+
                 document.getElementById('loginScreen').style.display = "none";
                 document.getElementById('appContent').style.display = "block";
+                document.getElementById('displayBBName').innerText = "🩸 " + bbName;
+                document.getElementById('loginError').style.display = "none";
                 listenToFirebaseData();
             } else {
                 document.getElementById('loginError').style.display = "block";
             }
         }
 
-        // क्लाउडवरून रिअल-टाईम डेटा घेणे
+        function doLogout() {
+            document.getElementById('loginScreen').style.display = "block";
+            document.getElementById('appContent').style.display = "none";
+            document.getElementById('passwordInput').value = "";
+            document.getElementById('bbNameInput').value = "";
+        }
+
         function listenToFirebaseData() {
-            database.ref('svp_blood_bank').on('value', (snapshot) => {
+            database.ref('banks/' + currentBankKey).on('value', (snapshot) => {
                 const data = snapshot.val() || {};
                 
                 donors = data.donors ? Object.keys(data.donors).map(key => ({ id: key, ...data.donors[key] })) : [];
@@ -368,28 +386,4 @@
             rList.innerHTML = receivers.length === 0 ? '<tr><td colspan="7">नोंद उपलब्ध नाही</td></tr>' : '';
             receivers.forEach((r) => {
                 rList.innerHTML += `<tr>
-                    <td>${r.name}</td><td><b>${r.group}</b></td><td>${r.phone}</td>
-                    <td>${r.hospital}</td><td>${r.date}</td><td>${r.quantity} Bag</td>
-                    <td><button type="button" class="btn-delete" onclick="deleteReceiver('${r.id}')">Delete</button></td>
-                </tr>`;
-            });
-        }
-
-        function addDonor() {
-            var name = document.getElementById('dName').value;
-            var group = document.getElementById('dGroup').value;
-            var phone = document.getElementById('dPhone').value;
-            var city = document.getElementById('dCity').value;
-            var date = document.getElementById('dDate').value;
-            var quantity = document.getElementById('dQuantity').value;
-
-            if(!name || !group || !phone || !city || !date || !quantity) { alert('कृपया सर्व माहिती भरा!'); return; }
-
-            database.ref('svp_blood_bank/donors').push({
-                name, group, phone, city, date, quantity
-            });
-
-            alert('रक्तदात्याची नोंद झाली!');
-            document.getElementById('dName').value = ''; document.getElementById('dGroup').value = '';
-            document.getElementById('dPhone').value = ''; document.getElementById('dCity').value = '';
-            document.getElementById('dDate'
+                    <td>${r.name}</td><td><b>${r.group}</b></td><td>${r.pho
